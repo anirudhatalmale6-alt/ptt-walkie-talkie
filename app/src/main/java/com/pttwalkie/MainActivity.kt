@@ -1,12 +1,15 @@
 package com.pttwalkie
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.AudioTrack
+import android.media.MediaPlayer
 import android.media.MediaRecorder
+import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.util.Base64
@@ -62,6 +65,10 @@ class MainActivity : AppCompatActivity() {
     private var currentGroup = ""
     private var serverIndex = 0
 
+    // PTT beep sounds
+    private var beepOn: MediaPlayer? = null
+    private var beepOff: MediaPlayer? = null
+
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val client = OkHttpClient.Builder()
         .pingInterval(java.time.Duration.ofSeconds(15))
@@ -82,6 +89,10 @@ class MainActivity : AppCompatActivity() {
         val pm = getSystemService(POWER_SERVICE) as PowerManager
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "pttwalkie:transmit")
 
+        // Init beep sounds
+        beepOn = MediaPlayer.create(this, R.raw.ptt_on)
+        beepOff = MediaPlayer.create(this, R.raw.ptt_off)
+
         checkPermissions()
         setupUI()
         initAudioTrack()
@@ -92,9 +103,28 @@ class MainActivity : AppCompatActivity() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             needed.add(Manifest.permission.RECORD_AUDIO)
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                needed.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
         if (needed.isNotEmpty()) {
             ActivityCompat.requestPermissions(this, needed.toTypedArray(), PERMISSION_REQUEST)
         }
+    }
+
+    private fun startForegroundService() {
+        val intent = Intent(this, PTTService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
+    }
+
+    private fun stopForegroundService() {
+        val intent = Intent(this, PTTService::class.java)
+        stopService(intent)
     }
 
     private fun setupUI() {
@@ -191,6 +221,9 @@ class MainActivity : AppCompatActivity() {
                     btnPTT.isEnabled = true
                     btnPTT.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF2E7D32.toInt())
                     etGroupNumber.isEnabled = false
+
+                    // Start foreground service to keep running in background
+                    startForegroundService()
                 }
             }
 
@@ -247,6 +280,7 @@ class MainActivity : AppCompatActivity() {
                     tvStatus.text = "לא מחובר"
                     tvStatus.setTextColor(0xFFFF5252.toInt())
                     resetUI()
+                    stopForegroundService()
                 }
             }
         })
@@ -262,6 +296,7 @@ class MainActivity : AppCompatActivity() {
         tvOnline.text = ""
         tvTransmitting.text = ""
         resetUI()
+        stopForegroundService()
     }
 
     private fun resetUI() {
@@ -274,9 +309,26 @@ class MainActivity : AppCompatActivity() {
         etGroupNumber.isEnabled = true
     }
 
+    private fun playBeep(mp: MediaPlayer?) {
+        try {
+            mp?.let {
+                if (it.isPlaying) {
+                    it.seekTo(0)
+                } else {
+                    it.start()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Beep error", e)
+        }
+    }
+
     private fun startTransmit() {
         if (!isConnected || isTransmitting) return
         isTransmitting = true
+
+        // Play PTT on beep
+        playBeep(beepOn)
 
         wakeLock?.acquire(60000)
 
@@ -332,6 +384,9 @@ class MainActivity : AppCompatActivity() {
         if (!isTransmitting) return
         isTransmitting = false
 
+        // Play PTT off beep
+        playBeep(beepOff)
+
         recordJob?.cancel()
         recordJob = null
 
@@ -372,6 +427,8 @@ class MainActivity : AppCompatActivity() {
         disconnect()
         audioTrack?.stop()
         audioTrack?.release()
+        beepOn?.release()
+        beepOff?.release()
         scope.cancel()
         if (wakeLock?.isHeld == true) {
             wakeLock?.release()
