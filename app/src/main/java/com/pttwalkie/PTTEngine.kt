@@ -55,14 +55,20 @@ object PTTEngine {
     private var audioRecord: AudioRecord? = null
     private var audioTrack: AudioTrack? = null
     private var recordJob: Job? = null
+    private var reconnectJob: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var serverIndex = 0
     private var beepOn: MediaPlayer? = null
     private var beepOff: MediaPlayer? = null
+    private var userDisconnected = false
+    private var reconnectAttempts = 0
+    private const val MAX_RECONNECT_ATTEMPTS = 100
+    private const val RECONNECT_DELAY_MS = 3000L
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val client = OkHttpClient.Builder()
-        .pingInterval(java.time.Duration.ofSeconds(15))
+        .pingInterval(java.time.Duration.ofSeconds(10))
+        .readTimeout(java.time.Duration.ofSeconds(0))
         .build()
 
     fun init(context: Context) {
@@ -79,6 +85,8 @@ object PTTEngine {
         if (isConnected) return
         currentGroup = group
         serverIndex = 0
+        userDisconnected = false
+        reconnectAttempts = 0
         tryConnect(group)
     }
 
@@ -99,6 +107,8 @@ object PTTEngine {
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(ws: WebSocket, response: Response) {
                 isConnected = true
+                reconnectAttempts = 0
+                Log.d(TAG, "Connected to ${RELAY_SERVERS[serverIndex]}")
                 onStatusChanged?.invoke("מחובר ✓  קבוצה $currentGroup", 0xFF4CAF50.toInt())
                 onConnected?.invoke()
             }
@@ -108,8 +118,11 @@ object PTTEngine {
                     val json = JSONObject(text)
                     when (json.optString("type")) {
                         "audio" -> {
-                            val data = Base64.decode(json.getString("data"), Base64.NO_WRAP)
-                            playAudio(data)
+                            // Don't play audio while transmitting (prevents echo)
+                            if (!isTransmitting) {
+                                val data = Base64.decode(json.getString("data"), Base64.NO_WRAP)
+                                playAudio(data)
+                            }
                         }
                         "count" -> onOnlineCount?.invoke(json.getInt("count"))
                         "tx_start" -> onTxStartRemote?.invoke()
@@ -122,31 +135,67 @@ object PTTEngine {
 
             override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
                 Log.e(TAG, "Failed on ${RELAY_SERVERS[serverIndex]}: ${t.message}")
-                serverIndex++
-                if (serverIndex < RELAY_SERVERS.size) {
-                    tryConnect(currentGroup)
+                val wasConnected = isConnected
+                isConnected = false
+
+                if (wasConnected && !userDisconnected) {
+                    // Was connected but dropped — auto-reconnect
+                    scheduleReconnect()
                 } else {
-                    isConnected = false
-                    onStatusChanged?.invoke("שגיאה: ${t.message}", 0xFFFF5252.toInt())
-                    onDisconnected?.invoke()
+                    // Initial connection attempt — try next server
+                    serverIndex++
+                    if (serverIndex < RELAY_SERVERS.size) {
+                        tryConnect(currentGroup)
+                    } else {
+                        onStatusChanged?.invoke("שגיאה: ${t.message}", 0xFFFF5252.toInt())
+                        onDisconnected?.invoke()
+                    }
                 }
             }
 
             override fun onClosed(ws: WebSocket, code: Int, reason: String) {
                 isConnected = false
-                onStatusChanged?.invoke("לא מחובר", 0xFFFF5252.toInt())
-                onDisconnected?.invoke()
+                if (!userDisconnected) {
+                    // Unexpected close — auto-reconnect
+                    scheduleReconnect()
+                } else {
+                    onStatusChanged?.invoke("לא מחובר", 0xFFFF5252.toInt())
+                    onDisconnected?.invoke()
+                }
             }
         })
     }
 
     fun disconnect() {
+        userDisconnected = true
+        reconnectJob?.cancel()
+        reconnectJob = null
         stopTransmit()
         webSocket?.close(1000, "disconnect")
         webSocket = null
         isConnected = false
         onStatusChanged?.invoke("לא מחובר", 0xFFFF5252.toInt())
         onDisconnected?.invoke()
+    }
+
+    private fun scheduleReconnect() {
+        if (userDisconnected || currentGroup.isEmpty()) return
+        reconnectAttempts++
+        if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
+            onStatusChanged?.invoke("לא מחובר — נסה שוב", 0xFFFF5252.toInt())
+            onDisconnected?.invoke()
+            return
+        }
+        Log.d(TAG, "Auto-reconnect attempt $reconnectAttempts in ${RECONNECT_DELAY_MS}ms")
+        onStatusChanged?.invoke("מתחבר מחדש... ($reconnectAttempts)", 0xFFFFAB00.toInt())
+        reconnectJob?.cancel()
+        reconnectJob = scope.launch {
+            delay(RECONNECT_DELAY_MS)
+            if (!userDisconnected && !isConnected) {
+                serverIndex = 0
+                tryConnect(currentGroup)
+            }
+        }
     }
 
     fun startTransmit() {
