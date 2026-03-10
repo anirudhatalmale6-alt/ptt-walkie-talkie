@@ -34,6 +34,28 @@
             android:exported="false"
             android:foregroundServiceType="microphone" />
 
+        <receiver
+            android:name=".PTTBroadcastReceiver"
+            android:exported="true">
+            <intent-filter android:priority="999">
+                <action android:name="com.android.action.SIDE_KEY_DOWN" />
+                <action android:name="com.android.action.SIDE_KEY_UP" />
+                <action android:name="com.android.action.SIDE_KEY" />
+                <action android:name="android.intent.action.PTT.down" />
+                <action android:name="android.intent.action.PTT.up" />
+                <action android:name="android.intent.action.PTT" />
+                <action android:name="android.intent.action.SIDE_KEY_DOWN" />
+                <action android:name="android.intent.action.SIDE_KEY_UP" />
+                <action android:name="android.intent.action.SIDE_KEY" />
+                <action android:name="com.xptt.pttbtn.down" />
+                <action android:name="com.xptt.pttbtn.up" />
+                <action android:name="ptt.key.down" />
+                <action android:name="ptt.key.up" />
+                <action android:name="com.ptt.BUTTON_DOWN" />
+                <action android:name="com.ptt.BUTTON_UP" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name=".PTTAccessibilityService"
             android:exported="true"

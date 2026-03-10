@@ -11,8 +11,8 @@ android {
         applicationId = "com.pttwalkie"
         minSdk = 21
         targetSdk = 34
-        versionCode = 7
-        versionName = "5.2"
+        versionCode = 8
+        versionName = "5.3"
     }
 
     signingConfigs {

@@ -3,6 +3,7 @@ package com.pttwalkie
 import android.Manifest
 import android.app.AlertDialog
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -47,6 +48,14 @@ class MainActivity : AppCompatActivity() {
         checkPermissions()
         setupUI()
         setupEngineCallbacks()
+
+        // Debug: show broadcast actions on screen
+        PTTEngine.onBroadcastDebug = { action ->
+            runOnUiThread {
+                tvHint.text = "Broadcast: $action"
+                tvHint.setTextColor(0xFF2196F3.toInt())
+            }
+        }
     }
 
     override fun onResume() {

@@ -23,11 +23,13 @@ class PTTService : Service() {
     }
 
     private var mediaSession: MediaSession? = null
+    private var pttReceiver: PTTBroadcastReceiver? = null
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
         setupMediaSession()
+        registerPTTBroadcastReceiver()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -140,7 +142,20 @@ class PTTService : Service() {
             .build()
     }
 
+    private fun registerPTTBroadcastReceiver() {
+        pttReceiver = PTTBroadcastReceiver()
+        val filter = PTTBroadcastReceiver.createIntentFilter()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(pttReceiver, filter, RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(pttReceiver, filter)
+        }
+        Log.d(TAG, "PTT broadcast receiver registered with ${filter.countActions()} actions")
+    }
+
     override fun onDestroy() {
+        try { pttReceiver?.let { unregisterReceiver(it) } } catch (_: Exception) {}
+        pttReceiver = null
         mediaSession?.isActive = false
         mediaSession?.release()
         mediaSession = null

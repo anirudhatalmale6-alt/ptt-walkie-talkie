@@ -281,8 +281,9 @@ object PTTEngine {
         return keyCode !in systemKeys && keyCode != 0
     }
 
-    // Debug callback for key events (optional, for testing new devices)
+    // Debug callbacks for testing new devices
     var onKeyDebug: ((Int, String) -> Unit)? = null
+    var onBroadcastDebug: ((String) -> Unit)? = null
 
     fun release() {
         disconnect()
