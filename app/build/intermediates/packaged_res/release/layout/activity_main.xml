@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#1a1a2e"
+    android:padding="24dp">
+
+    <!-- Title -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🎙️ PTT Walkie Talkie"
+        android:textColor="#FFFFFF"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginTop="16dp" />
+
+    <!-- Server URL -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="כתובת שרת"
+        android:textColor="#aaaaaa"
+        android:textSize="14sp"
+        android:layout_marginTop="24dp" />
+
+    <EditText
+        android:id="@+id/etServerUrl"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@drawable/edit_bg"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#666666"
+        android:hint="ws://192.168.1.100:3000"
+        android:text=""
+        android:inputType="textUri"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:textSize="16sp"
+        android:layout_marginTop="4dp" />
+
+    <!-- Group Number -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="מספר קבוצה"
+        android:textColor="#aaaaaa"
+        android:textSize="14sp"
+        android:layout_marginTop="16dp" />
+
+    <EditText
+        android:id="@+id/etGroupNumber"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@drawable/edit_bg"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#666666"
+        android:hint="101"
+        android:text="1"
+        android:inputType="number"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:textSize="18sp"
+        android:layout_marginTop="4dp" />
+
+    <!-- Connect Button -->
+    <Button
+        android:id="@+id/btnConnect"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:text="התחבר"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:backgroundTint="#2E7D32"
+        android:layout_marginTop="16dp" />
+
+    <!-- Status -->
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="לא מחובר"
+        android:textColor="#FF5252"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:layout_marginTop="12dp" />
+
+    <!-- Online count -->
+    <TextView
+        android:id="@+id/tvOnline"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textColor="#aaaaaa"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:layout_marginTop="4dp" />
+
+    <!-- Spacer -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- PTT Button -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginBottom="32dp">
+
+        <Button
+            android:id="@+id/btnPTT"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:layout_gravity="center"
+            android:text="🎤\nלחץ לשידור"
+            android:textSize="18sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#444466"
+            android:enabled="false"
+            android:stateListAnimator="@null" />
+    </FrameLayout>
+
+    <!-- Hint -->
+    <TextView
+        android:id="@+id/tvHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="לחץ על כפתור PTT במכשיר או על הכפתור למעלה"
+        android:textColor="#666666"
+        android:textSize="12sp"
+        android:gravity="center"
+        android:layout_marginBottom="16dp" />
+
+</LinearLayout>

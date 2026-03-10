@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PTT Walkie</string>
+    <style name="Theme.PTTWalkie" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#1B5E20</item>
+        <item name="colorPrimaryVariant">#2E7D32</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#FF6F00</item>
+        <item name="colorSecondaryVariant">#FF8F00</item>
+        <item name="colorOnSecondary">#000000</item>
+        <item name="android:statusBarColor">#1B5E20</item>
+    </style>
+</resources>
