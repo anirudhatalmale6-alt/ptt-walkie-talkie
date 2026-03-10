@@ -1,0 +1,7 @@
+.gradle/
+app/build/
+build/
+local.properties
+release-key.jks
+*.apk
+signaling-server/node_modules/
