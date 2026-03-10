@@ -98,16 +98,7 @@ class PTTService : Service() {
         }
     }
 
-    private fun isPTTKey(keyCode: Int): Boolean {
-        return keyCode == KeyEvent.KEYCODE_HEADSETHOOK ||
-               keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE ||
-               keyCode == KeyEvent.KEYCODE_MEDIA_PLAY ||
-               keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE ||
-               keyCode == KeyEvent.KEYCODE_CALL ||
-               keyCode == KeyEvent.KEYCODE_MEDIA_RECORD ||
-               keyCode == 1015 || keyCode == 1024 ||
-               keyCode == 261 || keyCode == 286
-    }
+    private fun isPTTKey(keyCode: Int): Boolean = PTTEngine.isPTTKey(keyCode)
 
     fun updateNotification(text: String) {
         val notification = buildNotification(text)

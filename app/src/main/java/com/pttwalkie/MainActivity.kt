@@ -60,7 +60,7 @@ class MainActivity : AppCompatActivity() {
             btnPTT.backgroundTintList = android.content.res.ColorStateList.valueOf(
                 if (PTTEngine.isTransmitting) 0xFFC62828.toInt() else 0xFF2E7D32.toInt()
             )
-            btnPTT.text = if (PTTEngine.isTransmitting) "🔴\n\nמשדר...\n\nשחרר להפסיק" else "🎤\n\nלחץ כאן לשידור\n\nPTT"
+            btnPTT.text = if (PTTEngine.isTransmitting) "🔴" else "🎤"
             etGroupNumber.isEnabled = false
         }
     }
@@ -106,6 +106,7 @@ class MainActivity : AppCompatActivity() {
                 btnConnect.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFFC62828.toInt())
                 btnPTT.isEnabled = true
                 btnPTT.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF2E7D32.toInt())
+                btnPTT.text = "🎤"
                 etGroupNumber.isEnabled = false
                 startPTTService()
             }
@@ -119,10 +120,10 @@ class MainActivity : AppCompatActivity() {
         PTTEngine.onTransmitChanged = { transmitting ->
             runOnUiThread {
                 if (transmitting) {
-                    btnPTT.text = "🔴\n\nמשדר...\n\nשחרר להפסיק"
+                    btnPTT.text = "🔴"
                     btnPTT.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFFC62828.toInt())
                 } else {
-                    btnPTT.text = "🎤\n\nלחץ כאן לשידור\n\nPTT"
+                    btnPTT.text = "🎤"
                     btnPTT.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF2E7D32.toInt())
                 }
             }
@@ -160,6 +161,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        // Debug: show keycode on tvHint for testing new devices
+        runOnUiThread {
+            tvHint.text = "Key: $keyCode (${KeyEvent.keyCodeToString(keyCode)})"
+        }
         if (isPTTKey(keyCode)) {
             PTTEngine.startTransmit()
             return true
@@ -175,22 +180,15 @@ class MainActivity : AppCompatActivity() {
         return super.onKeyUp(keyCode, event)
     }
 
-    private fun isPTTKey(keyCode: Int): Boolean {
-        return keyCode == KeyEvent.KEYCODE_HEADSETHOOK ||
-               keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE ||
-               keyCode == KeyEvent.KEYCODE_CALL ||
-               keyCode == KeyEvent.KEYCODE_MEDIA_RECORD ||
-               keyCode == 1015 || keyCode == 1024 ||
-               keyCode == 261 || keyCode == 286
-    }
+    private fun isPTTKey(keyCode: Int): Boolean = PTTEngine.isPTTKey(keyCode)
 
     private fun resetUI() {
-        btnConnect.text = "התחבר לקבוצה"
+        btnConnect.text = "התחבר"
         btnConnect.isEnabled = true
-        btnConnect.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF2E7D32.toInt())
+        btnConnect.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFFFFC107.toInt())
         btnPTT.isEnabled = false
-        btnPTT.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF444466.toInt())
-        btnPTT.text = "🎤\n\nלחץ כאן לשידור\n\nPTT"
+        btnPTT.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF3C3C4E.toInt())
+        btnPTT.text = "🎤"
         etGroupNumber.isEnabled = true
         tvOnline.text = ""
         tvTransmitting.text = ""

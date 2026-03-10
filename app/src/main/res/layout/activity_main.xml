@@ -1,146 +1,223 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#1a1a2e"
-    android:padding="20dp">
+    android:background="#F5F5F5">
 
-    <!-- Title -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="🎙️ PTT Walkie Talkie"
-        android:textColor="#FFFFFF"
-        android:textSize="26sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:layout_marginTop="12dp" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="עובד מכל מקום באינטרנט"
-        android:textColor="#888888"
-        android:textSize="13sp"
-        android:gravity="center"
-        android:layout_marginTop="2dp" />
-
-    <!-- Group Number -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="מספר קבוצה"
-        android:textColor="#cccccc"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:layout_marginTop="20dp" />
-
+    <!-- Top Bar -->
     <LinearLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_alignParentTop="true"
+        android:background="#FFFFFF"
+        android:elevation="4dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
+
+        <ImageView
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@android:drawable/ic_menu_sort_by_size"
+            android:contentDescription="menu" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PTT Walkie"
+            android:textColor="#333333"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=" 🎙"
+            android:textSize="22sp"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+
+    <!-- Group Header (Yellow) -->
+    <LinearLayout
+        android:id="@+id/groupHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_below="@id/topBar"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/yellow_header_bg"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:layout_marginTop="6dp">
+        android:padding="14dp">
 
-        <EditText
-            android:id="@+id/etGroupNumber"
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@android:drawable/ic_menu_revert"
+            android:contentDescription="back" />
+
+        <View
             android:layout_width="0dp"
-            android:layout_height="52dp"
-            android:layout_weight="1"
-            android:background="@drawable/edit_bg"
-            android:textColor="#FFFFFF"
-            android:textColorHint="#666666"
-            android:hint="1"
-            android:text="1"
-            android:inputType="number"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:textSize="22sp"
-            android:gravity="center"
-            android:layout_marginEnd="10dp" />
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <EditText
+                android:id="@+id/etGroupNumber"
+                android:layout_width="120dp"
+                android:layout_height="40dp"
+                android:background="@android:color/transparent"
+                android:textColor="#333333"
+                android:textColorHint="#999999"
+                android:hint="קבוצה 1"
+                android:text="1"
+                android:inputType="number"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:gravity="center" />
+
+            <TextView
+                android:id="@+id/tvOnline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textColor="#555555"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@android:drawable/ic_menu_my_calendar"
+            android:contentDescription="group" />
+    </LinearLayout>
+
+    <!-- Status & Connect -->
+    <LinearLayout
+        android:id="@+id/statusArea"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/groupHeader"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingTop="8dp">
+
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="לא מחובר"
+            android:textColor="#FF5252"
+            android:textSize="15sp"
+            android:gravity="center" />
 
         <Button
             android:id="@+id/btnConnect"
-            android:layout_width="wrap_content"
-            android:layout_height="52dp"
-            android:text="התחבר לקבוצה"
+            android:layout_width="200dp"
+            android:layout_height="44dp"
+            android:text="התחבר"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:backgroundTint="#FFC107"
+            android:textColor="#333333"
+            android:layout_marginTop="8dp" />
+
+        <!-- Transmitting indicator -->
+        <TextView
+            android:id="@+id/tvTransmitting"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textColor="#FF5722"
             android:textSize="15sp"
             android:textStyle="bold"
-            android:backgroundTint="#2E7D32"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp" />
+            android:gravity="center"
+            android:layout_marginTop="6dp" />
+
+        <!-- Key debug info -->
+        <TextView
+            android:id="@+id/tvHint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textColor="#999999"
+            android:textSize="11sp"
+            android:gravity="center"
+            android:layout_marginTop="4dp" />
     </LinearLayout>
 
-    <!-- Status -->
-    <TextView
-        android:id="@+id/tvStatus"
+    <!-- Bottom Bar -->
+    <LinearLayout
+        android:id="@+id/bottomBar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="לא מחובר"
-        android:textColor="#FF5252"
-        android:textSize="16sp"
-        android:gravity="center"
-        android:layout_marginTop="10dp" />
+        android:layout_height="56dp"
+        android:layout_alignParentBottom="true"
+        android:background="#FFFFFF"
+        android:elevation="8dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="40dp"
+        android:paddingEnd="40dp">
 
-    <!-- Online count -->
-    <TextView
-        android:id="@+id/tvOnline"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text=""
-        android:textColor="#aaaaaa"
-        android:textSize="14sp"
-        android:gravity="center"
-        android:layout_marginTop="2dp" />
+        <ImageView
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@android:drawable/ic_menu_my_calendar"
+            android:contentDescription="contacts"
+            android:layout_weight="1" />
 
-    <!-- Transmitting indicator -->
-    <TextView
-        android:id="@+id/tvTransmitting"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text=""
-        android:textColor="#FF9800"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:layout_marginTop="4dp" />
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="2" />
 
-    <!-- Spacer -->
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1" />
+        <ImageView
+            android:id="@+id/btnSpeaker"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@android:drawable/ic_lock_silent_mode_off"
+            android:contentDescription="speaker"
+            android:layout_weight="1" />
+    </LinearLayout>
 
-    <!-- Big PTT Button -->
+    <!-- PTT Button (floating in center-bottom) -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="center">
+        android:layout_above="@id/bottomBar"
+        android:layout_marginBottom="30dp"
+        android:layout_centerHorizontal="true">
 
         <Button
             android:id="@+id/btnPTT"
-            android:layout_width="260dp"
-            android:layout_height="260dp"
+            android:layout_width="160dp"
+            android:layout_height="160dp"
             android:layout_gravity="center"
-            android:text="🎤\n\nלחץ כאן לשידור\n\nPTT"
-            android:textSize="18sp"
+            android:text="🎤"
+            android:textSize="48sp"
             android:textColor="#FFFFFF"
-            android:backgroundTint="#444466"
+            android:backgroundTint="#3C3C4E"
             android:enabled="false"
-            android:stateListAnimator="@null" />
+            android:stateListAnimator="@null"
+            android:elevation="8dp" />
     </FrameLayout>
 
-    <!-- Hint -->
-    <TextView
-        android:id="@+id/tvHint"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="לחץ והחזק את הכפתור כדי לשדר\nאו השתמש במקש PTT הפיזי במכשיר"
-        android:textColor="#666666"
-        android:textSize="12sp"
-        android:gravity="center"
-        android:lineSpacingExtra="4dp"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="12dp" />
-
-</LinearLayout>
+</RelativeLayout>

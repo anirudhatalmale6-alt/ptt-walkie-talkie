@@ -10,6 +10,7 @@ import android.media.MediaRecorder
 import android.os.PowerManager
 import android.util.Base64
 import android.util.Log
+import android.view.KeyEvent
 import kotlinx.coroutines.*
 import okhttp3.*
 import org.json.JSONObject
@@ -238,6 +239,34 @@ object PTTEngine {
             }
         } catch (e: Exception) { }
     }
+
+    /**
+     * Comprehensive PTT key detection for multiple rugged devices:
+     * Motorola, RugGear RG750, Sonim, Kyocera, Samsung XCover, etc.
+     */
+    fun isPTTKey(keyCode: Int): Boolean {
+        return keyCode == KeyEvent.KEYCODE_HEADSETHOOK ||      // Headset button
+               keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE || // Media play/pause
+               keyCode == KeyEvent.KEYCODE_MEDIA_PLAY ||       // Media play
+               keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE ||      // Media pause
+               keyCode == KeyEvent.KEYCODE_CALL ||             // Call button
+               keyCode == KeyEvent.KEYCODE_MEDIA_RECORD ||     // Record button
+               keyCode == KeyEvent.KEYCODE_F1 ||               // RugGear RG750 PTT (131)
+               keyCode == KeyEvent.KEYCODE_F2 ||               // RugGear alternate (132)
+               keyCode == KeyEvent.KEYCODE_F3 ||               // Some devices use F3 (133)
+               keyCode == KeyEvent.KEYCODE_CAMERA ||           // Camera button (PTT on some devices)
+               keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||      // Volume down as PTT fallback
+               keyCode == 1015 || keyCode == 1024 ||           // Motorola vendor PTT codes
+               keyCode == 261 || keyCode == 286 ||             // Additional vendor codes
+               keyCode == 280 || keyCode == 281 ||             // Sonim PTT codes
+               keyCode == 1082 || keyCode == 1083 ||           // Samsung XCover PTT
+               keyCode == 284 || keyCode == 285 ||             // Kyocera PTT codes
+               keyCode == 220 || keyCode == 221 ||             // Generic SOS/PTT
+               keyCode == 1009 || keyCode == 1010             // Additional vendor PTT
+    }
+
+    // Debug callback for key events (optional, for testing new devices)
+    var onKeyDebug: ((Int, String) -> Unit)? = null
 
     fun release() {
         disconnect()
