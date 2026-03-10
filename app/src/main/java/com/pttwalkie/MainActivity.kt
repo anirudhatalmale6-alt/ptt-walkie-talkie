@@ -35,11 +35,11 @@ class MainActivity : AppCompatActivity() {
         private const val PERMISSION_REQUEST = 100
         private const val CHUNK_SIZE = 1600  // 100ms of 8kHz 16-bit mono
 
-        // Built-in relay servers — try multiple ports for reliability
+        // Built-in relay servers — HTTPS tunnel first (works on all mobile networks)
         private val RELAY_SERVERS = listOf(
+            "wss://namely-celtic-retreat-bull.trycloudflare.com",
             "ws://167.235.196.123:3000",
             "ws://167.235.196.123:4000",
-            "ws://167.235.196.123:5000",
             "ws://167.235.196.123:9000"
         )
     }
