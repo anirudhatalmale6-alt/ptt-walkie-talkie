@@ -241,28 +241,44 @@ object PTTEngine {
     }
 
     /**
-     * Comprehensive PTT key detection for multiple rugged devices:
-     * Motorola, RugGear RG750, Sonim, Kyocera, Samsung XCover, etc.
+     * PTT key detection — "catch-all" approach.
+     * Instead of whitelisting specific PTT keycodes, we BLOCK known system keys
+     * and treat EVERYTHING ELSE as PTT. This works with any PTT device
+     * (YTCOM ET200, RugGear, Motorola, Sonim, etc.)
      */
     fun isPTTKey(keyCode: Int): Boolean {
-        return keyCode == KeyEvent.KEYCODE_HEADSETHOOK ||      // Headset button
-               keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE || // Media play/pause
-               keyCode == KeyEvent.KEYCODE_MEDIA_PLAY ||       // Media play
-               keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE ||      // Media pause
-               keyCode == KeyEvent.KEYCODE_CALL ||             // Call button
-               keyCode == KeyEvent.KEYCODE_MEDIA_RECORD ||     // Record button
-               keyCode == KeyEvent.KEYCODE_F1 ||               // RugGear RG750 PTT (131)
-               keyCode == KeyEvent.KEYCODE_F2 ||               // RugGear alternate (132)
-               keyCode == KeyEvent.KEYCODE_F3 ||               // Some devices use F3 (133)
-               keyCode == KeyEvent.KEYCODE_CAMERA ||           // Camera button (PTT on some devices)
-               keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||      // Volume down as PTT fallback
-               keyCode == 1015 || keyCode == 1024 ||           // Motorola vendor PTT codes
-               keyCode == 261 || keyCode == 286 ||             // Additional vendor codes
-               keyCode == 280 || keyCode == 281 ||             // Sonim PTT codes
-               keyCode == 1082 || keyCode == 1083 ||           // Samsung XCover PTT
-               keyCode == 284 || keyCode == 285 ||             // Kyocera PTT codes
-               keyCode == 220 || keyCode == 221 ||             // Generic SOS/PTT
-               keyCode == 1009 || keyCode == 1010             // Additional vendor PTT
+        // These are system keys we should NOT treat as PTT
+        val systemKeys = setOf(
+            KeyEvent.KEYCODE_BACK,
+            KeyEvent.KEYCODE_HOME,
+            KeyEvent.KEYCODE_MENU,
+            KeyEvent.KEYCODE_APP_SWITCH,      // Recent apps
+            KeyEvent.KEYCODE_POWER,
+            KeyEvent.KEYCODE_VOLUME_UP,
+            KeyEvent.KEYCODE_VOLUME_DOWN,
+            KeyEvent.KEYCODE_VOLUME_MUTE,
+            KeyEvent.KEYCODE_NAVIGATE_PREVIOUS,
+            KeyEvent.KEYCODE_NAVIGATE_NEXT,
+            KeyEvent.KEYCODE_NAVIGATE_IN,
+            KeyEvent.KEYCODE_NAVIGATE_OUT,
+            KeyEvent.KEYCODE_DPAD_UP,
+            KeyEvent.KEYCODE_DPAD_DOWN,
+            KeyEvent.KEYCODE_DPAD_LEFT,
+            KeyEvent.KEYCODE_DPAD_RIGHT,
+            KeyEvent.KEYCODE_DPAD_CENTER,
+            KeyEvent.KEYCODE_ENTER,
+            KeyEvent.KEYCODE_TAB,
+            KeyEvent.KEYCODE_SPACE,
+            KeyEvent.KEYCODE_DEL,             // Backspace
+            KeyEvent.KEYCODE_FORWARD_DEL,
+            KeyEvent.KEYCODE_ESCAPE,
+            KeyEvent.KEYCODE_SEARCH,
+            KeyEvent.KEYCODE_NOTIFICATION,
+            KeyEvent.KEYCODE_BRIGHTNESS_UP,
+            KeyEvent.KEYCODE_BRIGHTNESS_DOWN
+        )
+        // Any key that is NOT a system key = PTT
+        return keyCode !in systemKeys && keyCode != 0
     }
 
     // Debug callback for key events (optional, for testing new devices)
