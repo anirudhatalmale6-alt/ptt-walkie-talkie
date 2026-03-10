@@ -35,8 +35,13 @@ class MainActivity : AppCompatActivity() {
         private const val PERMISSION_REQUEST = 100
         private const val CHUNK_SIZE = 1600  // 100ms of 8kHz 16-bit mono
 
-        // Built-in relay server — works from anywhere over the internet
-        private const val RELAY_SERVER = "ws://167.235.196.123:3000"
+        // Built-in relay servers — try multiple ports for reliability
+        private val RELAY_SERVERS = listOf(
+            "ws://167.235.196.123:3000",
+            "ws://167.235.196.123:4000",
+            "ws://167.235.196.123:5000",
+            "ws://167.235.196.123:9000"
+        )
     }
 
     private lateinit var etGroupNumber: EditText
@@ -55,6 +60,7 @@ class MainActivity : AppCompatActivity() {
     private var recordJob: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var currentGroup = ""
+    private var serverIndex = 0
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val client = OkHttpClient.Builder()
@@ -152,11 +158,25 @@ class MainActivity : AppCompatActivity() {
         }
 
         currentGroup = group
-        tvStatus.text = "מתחבר..."
+        serverIndex = 0
+        tryConnect(group)
+    }
+
+    private fun tryConnect(group: String) {
+        if (serverIndex >= RELAY_SERVERS.size) {
+            tvStatus.text = "לא הצליח להתחבר לאף שרת"
+            tvStatus.setTextColor(0xFFFF5252.toInt())
+            resetUI()
+            return
+        }
+
+        val serverUrl = RELAY_SERVERS[serverIndex]
+        tvStatus.text = "מתחבר... (ניסיון ${serverIndex + 1}/${RELAY_SERVERS.size})"
         tvStatus.setTextColor(0xFFFFAB00.toInt())
         btnConnect.isEnabled = false
 
-        val url = "$RELAY_SERVER?group=$group"
+        val url = "$serverUrl?group=$group"
+        Log.d(TAG, "Trying server: $url")
         val request = Request.Builder().url(url).build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
@@ -206,12 +226,18 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                Log.e(TAG, "WebSocket failed", t)
+                Log.e(TAG, "WebSocket failed on ${RELAY_SERVERS[serverIndex]}: ${t.message}", t)
                 runOnUiThread {
-                    isConnected = false
-                    tvStatus.text = "שגיאת חיבור: ${t.message}"
-                    tvStatus.setTextColor(0xFFFF5252.toInt())
-                    resetUI()
+                    // Try next server
+                    serverIndex++
+                    if (serverIndex < RELAY_SERVERS.size) {
+                        tryConnect(currentGroup)
+                    } else {
+                        isConnected = false
+                        tvStatus.text = "שגיאת חיבור: ${t.message}"
+                        tvStatus.setTextColor(0xFFFF5252.toInt())
+                        resetUI()
+                    }
                 }
             }
 
