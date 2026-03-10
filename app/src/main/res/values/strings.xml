@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">PTT Walkie</string>
+    <string name="accessibility_description">שירות PTT — תופס את מקש PTT הפיזי גם כשהאפליקציה ברקע. נדרש כדי לשדר עם מקש PTT כשהמסך כבוי או כשנמצאים באפליקציה אחרת.</string>
 </resources>

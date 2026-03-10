@@ -1,10 +1,12 @@
 package com.pttwalkie
 
 import android.Manifest
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.widget.Button
@@ -50,6 +52,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         setupEngineCallbacks()
+        checkAccessibilityService()
         if (PTTEngine.isConnected) {
             tvStatus.text = "מחובר ✓  קבוצה ${PTTEngine.currentGroup}"
             tvStatus.setTextColor(0xFF4CAF50.toInt())
@@ -181,6 +184,48 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun isPTTKey(keyCode: Int): Boolean = PTTEngine.isPTTKey(keyCode)
+
+    private var accessibilityPromptShown = false
+
+    private fun checkAccessibilityService() {
+        if (accessibilityPromptShown) return
+        if (isAccessibilityEnabled()) {
+            tvHint.text = "PTT ברקע: מופעל ✓"
+            tvHint.setTextColor(0xFF4CAF50.toInt())
+            return
+        }
+        tvHint.text = "⚠️ PTT ברקע: לא מופעל — לחץ כאן להפעלה"
+        tvHint.setTextColor(0xFFFF5722.toInt())
+        tvHint.setOnClickListener { showAccessibilityDialog() }
+    }
+
+    private fun isAccessibilityEnabled(): Boolean {
+        val service = "${packageName}/${PTTAccessibilityService::class.java.canonicalName}"
+        val enabledServices = Settings.Secure.getString(
+            contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ) ?: return false
+        return enabledServices.contains(service)
+    }
+
+    private fun showAccessibilityDialog() {
+        accessibilityPromptShown = true
+        AlertDialog.Builder(this)
+            .setTitle("הפעלת PTT ברקע")
+            .setMessage(
+                "כדי שמקש PTT יעבוד גם ברקע, צריך להפעיל את שירות הנגישות.\n\n" +
+                "הוראות:\n" +
+                "1. לחץ 'הגדרות'\n" +
+                "2. חפש את 'PTT Walkie' ברשימה\n" +
+                "3. הפעל אותו\n" +
+                "4. אשר את ההודעה"
+            )
+            .setPositiveButton("הגדרות") { _, _ ->
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+            .setNegativeButton("אחר כך", null)
+            .show()
+    }
 
     private fun resetUI() {
         btnConnect.text = "התחבר"
