@@ -29,10 +29,9 @@ object PTTEngine {
     private const val CHUNK_SIZE = 1600
 
     val RELAY_SERVERS = listOf(
+        "ws://172.236.22.5:8080",
         "wss://namely-celtic-retreat-bull.trycloudflare.com",
-        "ws://167.235.196.123:3000",
-        "ws://167.235.196.123:4000",
-        "ws://167.235.196.123:9000"
+        "ws://167.235.196.123:3000"
     )
 
     var isConnected = false
