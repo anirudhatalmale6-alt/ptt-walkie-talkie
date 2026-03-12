@@ -78,12 +78,14 @@ if ($callType === 'in') {
     }
 
     if (empty($targetPhone)) {
-        // לא נמצא נהג — fallback
+        // לא נמצא נהג — השמעת הודעה וניתוק
         echo json_encode([
-            "type" => "simpleMenu", "name" => "noDriver", "times" => 1,
-            "timeout" => 5, "enabledKeys" => "",
-            "files" => [["text" => "מספר לא מוקצה לנהג"]],
-            "extensionChange" => ".."
+            [
+                "type" => "simpleMenu", "name" => "noDriver", "times" => 1,
+                "timeout" => 3, "enabledKeys" => "",
+                "files" => [["text" => "אין אפשרות להתחבר לנהג"]],
+                "extensionChange" => ""
+            ]
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }
