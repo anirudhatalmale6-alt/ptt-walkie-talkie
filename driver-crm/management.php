@@ -228,6 +228,16 @@ if ($api === 'dial') {
     // שמירת שיחה אחרונה לכל נהג (מחליף נוסע ישן אם יש)
     $lastCallsFile = __DIR__ . '/last_calls.json';
     $lastCalls = loadJson($lastCallsFile);
+
+    // מחיקת הנוסע מנהג אחר אם קיים (נוסע שייך רק לנהג אחד)
+    $normalPassenger = preg_replace('/^0/', '', preg_replace('/^972/', '', preg_replace('/[^0-9]/', '', $passengerPhone)));
+    foreach ($lastCalls as $key => $val) {
+        $existingPassenger = preg_replace('/^0/', '', preg_replace('/^972/', '', preg_replace('/[^0-9]/', '', $val['passengerPhone'] ?? '')));
+        if ($existingPassenger === $normalPassenger && $key !== $driverPhone) {
+            unset($lastCalls[$key]);
+        }
+    }
+
     $lastCalls[$driverPhone] = [
         "passengerPhone" => $passengerPhone,
         "driverName"     => $driverName,
