@@ -138,7 +138,61 @@ if ($isDriver) {
     exit;
 }
 
-// ========== בדיקה 2: האם PBXdid הוא מספר וירטואלי של נהג? ==========
+// ========== בדיקה 2: האם המחייג הוא נוסע מוכר? ==========
+$passengerMapFile = __DIR__ . '/passenger_mapping.json';
+$pMappings = loadJ($passengerMapFile);
+$foundDriverForPassenger = null;
+
+foreach ($pMappings as $pPhone => $pData) {
+    if (normalizePhone($pPhone) === $normalPhone) {
+        $foundDriverForPassenger = $pData;
+        break;
+    }
+}
+
+// דיבאג
+$debugLog[] = [
+    "time" => date('Y-m-d H:i:s'),
+    "action" => "passenger_lookup",
+    "PBXphone" => $phone,
+    "normalPhone" => $normalPhone,
+    "foundDriver" => $foundDriverForPassenger ? $foundDriverForPassenger['driverPhone'] : '',
+    "passengerMappingKeys" => array_keys($pMappings)
+];
+if (count($debugLog) > 100) $debugLog = array_slice($debugLog, -100);
+file_put_contents($debugFile, json_encode($debugLog, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+
+if ($foundDriverForPassenger) {
+    $targetDriverPhone = $foundDriverForPassenger['driverPhone'];
+    $targetVirtual = $foundDriverForPassenger['virtualNumber'] ?? '';
+
+    // לוג שיחה נכנסת מנוסע
+    $log = loadJ($logFile);
+    $log[] = [
+        "id" => uniqid('call_'), "time" => date('Y-m-d H:i:s'),
+        "driverName" => $foundDriverForPassenger['driverName'] ?? '',
+        "driverPhone" => $targetDriverPhone,
+        "passengerPhone" => $phone, "virtualNumber" => $targetVirtual,
+        "type" => "incoming", "duration" => "", "recording" => "",
+        "status" => "connected"
+    ];
+    if (count($log) > 1000) $log = array_slice($log, -1000);
+    file_put_contents($logFile, json_encode($log, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+
+    // מחייג לנהג — הנהג רואה מספר וירטואלי
+    echo json_encode([
+        "type"          => "simpleRouting",
+        "name"          => "dialDriver",
+        "dialPhone"     => $targetDriverPhone,
+        "displayNumber" => !empty($targetVirtual) ? $targetVirtual : "",
+        "routingMusic"  => "yes",
+        "ringSec"       => 30,
+        "limit"         => ""
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// ========== בדיקה 3: האם PBXdid הוא מספר וירטואלי של נהג? ==========
 $normalDid = normalizePhone($did);
 $targetPhone = '';
 $driverName = '';

@@ -225,6 +225,7 @@ if ($api === 'dial') {
         exit;
     }
 
+    // מיפוי נהג→נוסע (לשיחות יוצאות, חד פעמי)
     $mappingFile = __DIR__ . '/call_mapping.json';
     $mappings = loadJson($mappingFile);
     $mappings[$driverPhone] = [
@@ -234,6 +235,17 @@ if ($api === 'dial') {
         "timestamp"      => date('Y-m-d H:i:s')
     ];
     saveJson($mappingFile, $mappings);
+
+    // מיפוי נוסע→נהג (לשיחות נכנסות מהנוסע, קבוע)
+    $passengerMapFile = __DIR__ . '/passenger_mapping.json';
+    $pMappings = loadJson($passengerMapFile);
+    $pMappings[$passengerPhone] = [
+        "driverPhone"    => $driverPhone,
+        "driverName"     => $driverName,
+        "virtualNumber"  => $virtualNumber,
+        "timestamp"      => date('Y-m-d H:i:s')
+    ];
+    saveJson($passengerMapFile, $pMappings);
 
     $data = [
         "action"              => "campaignRun",
