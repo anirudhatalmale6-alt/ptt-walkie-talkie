@@ -25,7 +25,6 @@ $did        = $_GET['PBXdid'] ?? '';
 $callStatus = $_GET['PBXcallStatus'] ?? '';
 $callType   = $_GET['PBXcallType'] ?? '';
 $callId     = $_GET['PBXcallId'] ?? '';
-$pbxNum     = $_GET['PBXnum'] ?? '';
 
 // שיחה נותקה
 if ($callStatus === 'HANGUP') {
@@ -37,7 +36,6 @@ $driversFile = __DIR__ . '/drivers.json';
 $mappingFile = __DIR__ . '/call_mapping.json';
 $logFile     = __DIR__ . '/call_log.json';
 
-// נרמול טלפון — מוריד 0, +972, 972 מההתחלה
 function normalizePhone($p) {
     $p = trim($p);
     $p = preg_replace('/[^0-9]/', '', $p);
@@ -65,6 +63,14 @@ $debugLog[] = [
 ];
 if (count($debugLog) > 100) $debugLog = array_slice($debugLog, -100);
 file_put_contents($debugFile, json_encode($debugLog, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+
+// ========== callback — אם מודול קודם כבר בוצע, סיום השיחה ==========
+// אחרי simpleRouting/simpleMenu, המרכזייה חוזרת עם תוצאת המודול כפרמטר
+if (isset($_GET['dialPassenger']) || isset($_GET['dialDriver']) ||
+    isset($_GET['noMapping']) || isset($_GET['noDriver'])) {
+    echo json_encode(["type" => "goTo", "goTo" => ""]);
+    exit;
+}
 
 // ========== מצב 1: שיחה יוצאת (PBXcallType=out — קמפיין, נהג ענה, מחבר לנוסע) ==========
 if ($callType === 'out') {
@@ -111,7 +117,7 @@ if ($callType === 'out') {
     }
 
     // מחייג לנוסע — הנוסע רואה מספר וירטואלי
-    echo json_encode([
+    $response = [
         "type"          => "simpleRouting",
         "name"          => "dialPassenger",
         "dialPhone"     => $passengerPhone,
@@ -119,7 +125,18 @@ if ($callType === 'out') {
         "routingMusic"  => "yes",
         "ringSec"       => 30,
         "limit"         => ""
-    ], JSON_UNESCAPED_UNICODE);
+    ];
+
+    // דיבאג — שמירת התגובה
+    $debugLog[] = [
+        "time" => date('Y-m-d H:i:s'),
+        "action" => "outgoing_response",
+        "response" => $response
+    ];
+    if (count($debugLog) > 100) $debugLog = array_slice($debugLog, -100);
+    file_put_contents($debugFile, json_encode($debugLog, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+
+    echo json_encode($response, JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -130,7 +147,6 @@ $targetPhone = '';
 $driverName = '';
 $driverVirtual = $did;
 
-// מוצא נהג לפי מספר וירטואלי (PBXdid)
 foreach ($drivers as $d) {
     $virtualNum = $d['virtual'] ?? '';
     if (!empty($virtualNum) && normalizePhone($virtualNum) === $normalDid) {
@@ -156,7 +172,6 @@ if (count($debugLog) > 100) $debugLog = array_slice($debugLog, -100);
 file_put_contents($debugFile, json_encode($debugLog, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 
 if (empty($targetPhone)) {
-    // לא נמצא נהג — השמעת הודעה וניתוק
     echo json_encode([
         "type" => "simpleMenu",
         "name" => "noDriver",
@@ -182,7 +197,7 @@ if (count($log) > 1000) $log = array_slice($log, -1000);
 file_put_contents($logFile, json_encode($log, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 
 // מחייג לנהג — הנהג רואה את המספר הוירטואלי
-echo json_encode([
+$response = [
     "type"          => "simpleRouting",
     "name"          => "dialDriver",
     "dialPhone"     => $targetPhone,
@@ -190,4 +205,15 @@ echo json_encode([
     "routingMusic"  => "yes",
     "ringSec"       => 30,
     "limit"         => ""
-], JSON_UNESCAPED_UNICODE);
+];
+
+// דיבאג
+$debugLog[] = [
+    "time" => date('Y-m-d H:i:s'),
+    "action" => "incoming_response",
+    "response" => $response
+];
+if (count($debugLog) > 100) $debugLog = array_slice($debugLog, -100);
+file_put_contents($debugFile, json_encode($debugLog, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+
+echo json_encode($response, JSON_UNESCAPED_UNICODE);
