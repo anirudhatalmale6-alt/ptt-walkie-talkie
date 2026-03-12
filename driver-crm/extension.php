@@ -40,9 +40,11 @@ function loadJ($file) {
     return [];
 }
 
-// callback — אם מודול קודם כבר בוצע, סיום
+// callback — אם מודול קודם כבר בוצע, סיום וניתוק
+// אחרי simpleRouting/simpleMenu, המרכזייה חוזרת עם תוצאת המודול
 if (isset($_GET['dialPassenger']) || isset($_GET['dialDriver']) ||
-    isset($_GET['noMapping']) || isset($_GET['noDriver'])) {
+    isset($_GET['noMapping']) || isset($_GET['noDriver']) ||
+    isset($_GET['msg'])) {
     echo json_encode(["type" => "goTo", "goTo" => ""]);
     exit;
 }
@@ -80,10 +82,12 @@ if ($isDriver) {
     $passengerPhone = '';
     $virtualNumber = $driverData['virtual'] ?? '';
 
+    $matchedKey = '';
     foreach ($mappings as $key => $val) {
         if (normalizePhone($key) === $normalPhone) {
             $passengerPhone = $val['passengerPhone'];
             if (empty($virtualNumber)) $virtualNumber = $val['virtualNumber'] ?? '';
+            $matchedKey = $key;
             break;
         }
     }
@@ -101,16 +105,24 @@ if ($isDriver) {
     file_put_contents($debugFile, json_encode($debugLog, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 
     if (empty($passengerPhone)) {
+        // נהג נמצא אבל אין מיפוי לנוסע — הודעה וניתוק
         echo json_encode([
             "type" => "simpleMenu",
             "name" => "noMapping",
             "times" => 1,
             "timeout" => 3,
             "enabledKeys" => "",
+            "errorReturn" => "NOMATCH",
             "files" => [["text" => "אין התאמה בשיחה"]],
             "extensionChange" => ""
         ], JSON_UNESCAPED_UNICODE);
         exit;
+    }
+
+    // מוחק את המיפוי אחרי שימוש — חד פעמי, מונע חיוג חוזר
+    if (!empty($matchedKey)) {
+        unset($mappings[$matchedKey]);
+        file_put_contents($mappingFile, json_encode($mappings, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
     }
 
     // מחייג לנוסע — הנוסע רואה מספר וירטואלי
@@ -181,13 +193,14 @@ if (!empty($targetPhone)) {
     exit;
 }
 
-// ========== אין התאמה ==========
+// ========== אין התאמה — הודעה וניתוק ==========
 echo json_encode([
     "type" => "simpleMenu",
     "name" => "noDriver",
     "times" => 1,
     "timeout" => 3,
     "enabledKeys" => "",
+    "errorReturn" => "NOMATCH",
     "files" => [["text" => "אין התאמה בשיחה"]],
     "extensionChange" => ""
 ], JSON_UNESCAPED_UNICODE);
