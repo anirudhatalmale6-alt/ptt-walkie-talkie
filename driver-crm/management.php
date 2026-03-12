@@ -107,13 +107,14 @@ if ($api === 'dial') {
 
     file_put_contents($mappingFile, json_encode($mappings, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 
-    // הפעלת campaign API — מתקשר לנהג
+    // הפעלת campaign API — מתקשר לנהג, מציג מספר וירטואלי
     $data = [
         "action"              => "campaignRun",
         "apiKey"              => "798407e3a74922",
         "messagesType"        => "extensionActivation",
         "extensionActivation" => "8576",
         "phones"              => $driverPhone,
+        "displayNumber"       => $virtualNumber ?: $driverPhone,
         "callLength"          => 30,
         "dialRetries"         => 1,
         "betweenRetries"      => 20,
