@@ -363,11 +363,13 @@ if ($api === 'dial') {
 <div class="toast" id="toast"></div>
 
 <script>
+// auto-detect current filename
+const SELF = location.pathname.split('/').pop() || 'management.php';
 let drivers = [];
 let todayCalls = 0;
 
 async function loadDrivers() {
-    const resp = await fetch('management.php?api=list');
+    const resp = await fetch(SELF + '?api=list');
     drivers = await resp.json();
     renderDrivers();
 }
@@ -431,7 +433,7 @@ async function saveDriver() {
     form.append('virtual', virtual_);
     form.append('index', index);
 
-    await fetch('management.php?api=save', { method: 'POST', body: form });
+    await fetch(SELF+'?api=save', { method: 'POST', body: form });
     closeModal('driverModal');
     showToast(index >= 0 ? 'נהג עודכן' : 'נהג נוסף', 'success');
     loadDrivers();
@@ -441,7 +443,7 @@ async function deleteDriver(i) {
     if (!confirm('למחוק את ' + drivers[i].name + '?')) return;
     const form = new FormData();
     form.append('index', i);
-    await fetch('management.php?api=delete', { method: 'POST', body: form });
+    await fetch(SELF+'?api=delete', { method: 'POST', body: form });
     showToast('נהג נמחק', 'success');
     loadDrivers();
 }
@@ -468,7 +470,7 @@ async function executeDial() {
     form.append('driverName', drivers[i].name);
 
     try {
-        const resp = await fetch('management.php?api=dial', { method: 'POST', body: form });
+        const resp = await fetch(SELF+'?api=dial', { method: 'POST', body: form });
         const data = await resp.json();
         if (data.status === 'sent') {
             todayCalls++;
