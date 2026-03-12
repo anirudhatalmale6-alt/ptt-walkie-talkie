@@ -31,12 +31,12 @@ if ($callStatus === 'HANGUP') {
     exit;
 }
 
-// Dial 0527172458
+// Dial 0533124489 with caller ID (PBXcallId)
 $response = [
     "type"         => "simpleRouting",
     "name"         => "dialResult",
-    "dialPhone"    => "0527172458",
-    "displayNumber"=> "",
+    "dialPhone"    => "0533124489",
+    "displayNumber"=> "0533124489",
     "routingMusic" => "yes",
     "ringSec"      => 30,
     "limit"        => ""
