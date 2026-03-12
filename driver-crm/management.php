@@ -84,6 +84,7 @@ if ($api === 'dial') {
     $driverPhone    = $_POST['driverPhone'] ?? '';
     $passengerPhone = $_POST['passengerPhone'] ?? '';
     $driverName     = $_POST['driverName'] ?? '';
+    $virtualNumber  = $_POST['virtualNumber'] ?? '';
 
     if (empty($driverPhone) || empty($passengerPhone)) {
         echo json_encode(["status" => "error", "message" => "חסר מספר טלפון"]);
@@ -100,6 +101,7 @@ if ($api === 'dial') {
     $mappings[$driverPhone] = [
         "passengerPhone" => $passengerPhone,
         "driverName"     => $driverName,
+        "virtualNumber"  => $virtualNumber,
         "timestamp"      => date('Y-m-d H:i:s')
     ];
 
@@ -468,6 +470,7 @@ async function executeDial() {
     form.append('driverPhone', drivers[i].phone);
     form.append('passengerPhone', passenger);
     form.append('driverName', drivers[i].name);
+    form.append('virtualNumber', drivers[i].virtual || '');
 
     try {
         const resp = await fetch(SELF+'?api=dial', { method: 'POST', body: form });
