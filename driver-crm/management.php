@@ -225,27 +225,16 @@ if ($api === 'dial') {
         exit;
     }
 
-    // מיפוי נהג→נוסע (לשיחות יוצאות, חד פעמי)
-    $mappingFile = __DIR__ . '/call_mapping.json';
-    $mappings = loadJson($mappingFile);
-    $mappings[$driverPhone] = [
+    // שמירת שיחה אחרונה לכל נהג (מחליף נוסע ישן אם יש)
+    $lastCallsFile = __DIR__ . '/last_calls.json';
+    $lastCalls = loadJson($lastCallsFile);
+    $lastCalls[$driverPhone] = [
         "passengerPhone" => $passengerPhone,
         "driverName"     => $driverName,
         "virtualNumber"  => $virtualNumber,
         "timestamp"      => date('Y-m-d H:i:s')
     ];
-    saveJson($mappingFile, $mappings);
-
-    // מיפוי נוסע→נהג (לשיחות נכנסות מהנוסע, קבוע)
-    $passengerMapFile = __DIR__ . '/passenger_mapping.json';
-    $pMappings = loadJson($passengerMapFile);
-    $pMappings[$passengerPhone] = [
-        "driverPhone"    => $driverPhone,
-        "driverName"     => $driverName,
-        "virtualNumber"  => $virtualNumber,
-        "timestamp"      => date('Y-m-d H:i:s')
-    ];
-    saveJson($passengerMapFile, $pMappings);
+    saveJson($lastCallsFile, $lastCalls);
 
     $data = [
         "action"              => "campaignRun",
