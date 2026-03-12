@@ -2,16 +2,16 @@
 /**
  * קובץ שלוחה 8580 — URL שמוגדר במרכזייה טכנוליין
  *
- * מצב 1 — שיחה יוצאת (CRM מחייג לנהג, PBXcallType=out):
- *   PBXphone = טלפון הנהג
+ * מצב 1 — שיחה יוצאת (PBXcallType=out):
+ *   PBXphone = טלפון הנהג (שענה לקמפיין)
  *   קורא call_mapping.json → מוצא נוסע → מחייג לנוסע
  *   הנוסע רואה: מספר וירטואלי
  *
- * מצב 2 — שיחה נכנסת (נוסע מחייג למספר וירטואלי, PBXcallType=in):
- *   PBXphone = טלפון הנוסע
- *   PBXdid = מספר וירטואלי
+ * מצב 2 — שיחה נכנסת (PBXcallType="" ריק):
+ *   PBXphone = טלפון הנוסע/מחייג
+ *   PBXdid = מספר וירטואלי שאליו חייגו
  *   קורא drivers.json → מוצא נהג לפי מספר וירטואלי → מחייג לנהג
- *   הנהג רואה: מספר וירטואלי (PBXdid)
+ *   הנהג רואה: מספר וירטואלי
  *
  * מספר מערכת: 0765674892
  * מפתח: 7c2cf8346c7633
@@ -25,6 +25,7 @@ $did        = $_GET['PBXdid'] ?? '';
 $callStatus = $_GET['PBXcallStatus'] ?? '';
 $callType   = $_GET['PBXcallType'] ?? '';
 $callId     = $_GET['PBXcallId'] ?? '';
+$pbxNum     = $_GET['PBXnum'] ?? '';
 
 // שיחה נותקה
 if ($callStatus === 'HANGUP') {
@@ -39,9 +40,9 @@ $logFile     = __DIR__ . '/call_log.json';
 // נרמול טלפון — מוריד 0, +972, 972 מההתחלה
 function normalizePhone($p) {
     $p = trim($p);
-    $p = preg_replace('/[^0-9]/', '', $p); // רק ספרות
-    $p = preg_replace('/^972/', '', $p);    // הסר 972
-    $p = preg_replace('/^0/', '', $p);      // הסר 0
+    $p = preg_replace('/[^0-9]/', '', $p);
+    $p = preg_replace('/^972/', '', $p);
+    $p = preg_replace('/^0/', '', $p);
     return $p;
 }
 
@@ -50,7 +51,7 @@ function loadJ($file) {
     return [];
 }
 
-// ========== דיבאג — שמירת כל הפרמטרים לקובץ לוג ==========
+// ========== דיבאג ==========
 $debugFile = __DIR__ . '/debug_log.json';
 $debugLog = loadJ($debugFile);
 $debugLog[] = [
@@ -65,30 +66,41 @@ $debugLog[] = [
 if (count($debugLog) > 100) $debugLog = array_slice($debugLog, -100);
 file_put_contents($debugFile, json_encode($debugLog, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 
-// ========== מצב 2: שיחה נכנסת (נוסע מחייג למספר וירטואלי) ==========
-if ($callType === 'in') {
-    $drivers = loadJ($driversFile);
-    $normalDid = normalizePhone($did);
-    $targetPhone = '';
-    $driverName = '';
-    $driverVirtual = $did; // ברירת מחדל — PBXdid
+// ========== מצב 1: שיחה יוצאת (PBXcallType=out — קמפיין, נהג ענה, מחבר לנוסע) ==========
+if ($callType === 'out') {
+    $passengerPhone = '';
+    $virtualNumber  = '';
+    $driverName     = '';
 
-    // מוצא נהג לפי מספר וירטואלי (PBXdid)
-    foreach ($drivers as $d) {
-        $virtualNum = $d['virtual'] ?? '';
-        if (!empty($virtualNum) && normalizePhone($virtualNum) === $normalDid) {
-            $targetPhone = $d['phone'];
-            $driverName = $d['name'];
-            $driverVirtual = $virtualNum; // מספר וירטואלי מ-drivers.json
+    $mappings = loadJ($mappingFile);
+    $normalPhone = normalizePhone($phone);
+
+    foreach ($mappings as $key => $val) {
+        if (normalizePhone($key) === $normalPhone) {
+            $passengerPhone = $val['passengerPhone'];
+            $virtualNumber  = $val['virtualNumber'] ?? '';
+            $driverName     = $val['driverName'] ?? '';
             break;
         }
     }
 
-    if (empty($targetPhone)) {
-        // לא נמצא נהג — השמעת הודעה וניתוק
+    // דיבאג
+    $debugLog[] = [
+        "time" => date('Y-m-d H:i:s'),
+        "action" => "outgoing_lookup",
+        "PBXphone" => $phone,
+        "normalPhone" => $normalPhone,
+        "foundPassenger" => $passengerPhone,
+        "foundVirtual" => $virtualNumber,
+        "mappingKeys" => array_keys($mappings)
+    ];
+    if (count($debugLog) > 100) $debugLog = array_slice($debugLog, -100);
+    file_put_contents($debugFile, json_encode($debugLog, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+
+    if (empty($passengerPhone)) {
         echo json_encode([
             "type" => "simpleMenu",
-            "name" => "noDriver",
+            "name" => "noMapping",
             "times" => 1,
             "timeout" => 3,
             "enabledKeys" => "",
@@ -98,24 +110,12 @@ if ($callType === 'in') {
         exit;
     }
 
-    // לוג שיחה נכנסת
-    $log = loadJ($logFile);
-    $log[] = [
-        "id" => uniqid('call_'), "time" => date('Y-m-d H:i:s'),
-        "driverName" => $driverName, "driverPhone" => $targetPhone,
-        "passengerPhone" => $phone, "virtualNumber" => $driverVirtual,
-        "type" => "incoming", "duration" => "", "recording" => "",
-        "status" => "connected"
-    ];
-    if (count($log) > 1000) $log = array_slice($log, -1000);
-    file_put_contents($logFile, json_encode($log, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-
-    // מחייג לנהג — הנהג רואה את המספר הוירטואלי
+    // מחייג לנוסע — הנוסע רואה מספר וירטואלי
     echo json_encode([
         "type"          => "simpleRouting",
-        "name"          => "dialDriver",
-        "dialPhone"     => $targetPhone,
-        "displayNumber" => $driverVirtual,
+        "name"          => "dialPassenger",
+        "dialPhone"     => $passengerPhone,
+        "displayNumber" => !empty($virtualNumber) ? $virtualNumber : "",
         "routingMusic"  => "yes",
         "ringSec"       => 30,
         "limit"         => ""
@@ -123,42 +123,43 @@ if ($callType === 'in') {
     exit;
 }
 
-// ========== מצב 1: שיחה יוצאת (CRM מחייג לנהג → מחבר לנוסע) ==========
-$passengerPhone = '';
-$virtualNumber  = '';
-$driverName     = '';
+// ========== מצב 2: שיחה נכנסת (PBXcallType="" ריק — מישהו חייג למספר וירטואלי) ==========
+$drivers = loadJ($driversFile);
+$normalDid = normalizePhone($did);
+$targetPhone = '';
+$driverName = '';
+$driverVirtual = $did;
 
-$mappings = loadJ($mappingFile);
-$normalPhone = normalizePhone($phone);
-
-// מחפש את הנוסע לפי מספר הנהג (PBXphone) — בדיקה עם נרמול
-foreach ($mappings as $key => $val) {
-    if (normalizePhone($key) === $normalPhone) {
-        $passengerPhone = $val['passengerPhone'];
-        $virtualNumber  = $val['virtualNumber'] ?? '';
-        $driverName     = $val['driverName'] ?? '';
+// מוצא נהג לפי מספר וירטואלי (PBXdid)
+foreach ($drivers as $d) {
+    $virtualNum = $d['virtual'] ?? '';
+    if (!empty($virtualNum) && normalizePhone($virtualNum) === $normalDid) {
+        $targetPhone = $d['phone'];
+        $driverName = $d['name'];
+        $driverVirtual = $virtualNum;
         break;
     }
 }
 
-// דיבאג — שמירת תוצאת חיפוש
+// דיבאג
 $debugLog[] = [
     "time" => date('Y-m-d H:i:s'),
-    "action" => "outgoing_lookup",
+    "action" => "incoming_lookup",
     "PBXphone" => $phone,
-    "normalPhone" => $normalPhone,
-    "foundPassenger" => $passengerPhone,
-    "foundVirtual" => $virtualNumber,
-    "mappingKeys" => array_keys($mappings)
+    "PBXdid" => $did,
+    "normalDid" => $normalDid,
+    "foundDriver" => $targetPhone,
+    "foundName" => $driverName,
+    "driverVirtuals" => array_map(function($d) { return $d['virtual'] ?? ''; }, $drivers)
 ];
 if (count($debugLog) > 100) $debugLog = array_slice($debugLog, -100);
 file_put_contents($debugFile, json_encode($debugLog, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 
-if (empty($passengerPhone)) {
-    // לא נמצא מיפוי — השמעת הודעה וניתוק
+if (empty($targetPhone)) {
+    // לא נמצא נהג — השמעת הודעה וניתוק
     echo json_encode([
         "type" => "simpleMenu",
-        "name" => "noMapping",
+        "name" => "noDriver",
         "times" => 1,
         "timeout" => 3,
         "enabledKeys" => "",
@@ -168,14 +169,24 @@ if (empty($passengerPhone)) {
     exit;
 }
 
-// הנוסע רואה את המספר הוירטואלי
-$displayNum = !empty($virtualNumber) ? $virtualNumber : '';
+// לוג שיחה נכנסת
+$log = loadJ($logFile);
+$log[] = [
+    "id" => uniqid('call_'), "time" => date('Y-m-d H:i:s'),
+    "driverName" => $driverName, "driverPhone" => $targetPhone,
+    "passengerPhone" => $phone, "virtualNumber" => $driverVirtual,
+    "type" => "incoming", "duration" => "", "recording" => "",
+    "status" => "connected"
+];
+if (count($log) > 1000) $log = array_slice($log, -1000);
+file_put_contents($logFile, json_encode($log, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 
+// מחייג לנהג — הנהג רואה את המספר הוירטואלי
 echo json_encode([
     "type"          => "simpleRouting",
-    "name"          => "dialPassenger",
-    "dialPhone"     => $passengerPhone,
-    "displayNumber" => $displayNum,
+    "name"          => "dialDriver",
+    "dialPhone"     => $targetPhone,
+    "displayNumber" => $driverVirtual,
     "routingMusic"  => "yes",
     "ringSec"       => 30,
     "limit"         => ""
