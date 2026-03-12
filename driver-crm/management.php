@@ -112,7 +112,7 @@ if ($api === 'dial') {
         "messagesType"        => "extensionActivation",
         "extensionActivation" => "8576",
         "phones"              => $driverPhone,
-        "callLength"          => 60,
+        "callLength"          => 30,
         "dialRetries"         => 1,
         "betweenRetries"      => 20,
         "reasonableHours"     => "no"
@@ -472,15 +472,20 @@ async function executeDial() {
     try {
         const resp = await fetch(SELF+'?api=dial', { method: 'POST', body: form });
         const data = await resp.json();
-        if (data.status === 'sent') {
+        // Show full server response
+        const respStr = JSON.stringify(data, null, 2);
+        if (data.status === 'sent' && (!data.response || !data.response.errorCode)) {
             todayCalls++;
             document.getElementById('totalCalls').textContent = todayCalls;
             showToast('שיחה נשלחה!', 'success');
         } else {
-            showToast('שגיאה: ' + (data.message || ''), 'error');
+            const errMsg = data.response?.messige || data.response?.message || data.message || '';
+            showToast('שגיאה: ' + errMsg, 'error');
         }
+        alert('תשובת שרת:\n' + respStr);
     } catch(e) {
         showToast('שגיאת חיבור', 'error');
+        alert('שגיאה: ' + e.message);
     }
 }
 
