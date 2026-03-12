@@ -114,7 +114,7 @@ if ($api === 'dial') {
         "messagesType"        => "extensionActivation",
         "extensionActivation" => "8576",
         "phones"              => $driverPhone,
-        "displayNumber"       => $virtualNumber ?: $driverPhone,
+        "callId"              => $virtualNumber ?: $driverPhone,
         "callLength"          => 30,
         "dialRetries"         => 1,
         "betweenRetries"      => 20,
