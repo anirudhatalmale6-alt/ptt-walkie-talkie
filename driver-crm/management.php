@@ -237,9 +237,9 @@ if ($api === 'dial') {
 
     $data = [
         "action"              => "campaignRun",
-        "apiKey"              => "798407e3a74922",
+        "apiKey"              => "7c2cf8346c7633",
         "messagesType"        => "extensionActivation",
-        "extensionActivation" => "8576",
+        "extensionActivation" => "8580",
         "phones"              => $driverPhone,
         "callId"              => $virtualNumber ?: $driverPhone,
         "callLength"          => 30,
