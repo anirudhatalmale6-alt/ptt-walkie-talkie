@@ -7,7 +7,7 @@
  *    → כן: מחפש את הנוסע שלו ב-call_mapping → מחייג לנוסע
  * 2. אם לא נהג, בודק PBXdid (המספר שאליו חייגו) מול מספרים וירטואליים
  *    → כן: מוצא את הנהג → מחייג לנהג
- * 3. אין התאמה → "אין אפשרות להתחבר לנהג"
+ * 3. אין התאמה → "אין התאמה בשיחה"
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -107,7 +107,7 @@ if ($isDriver) {
             "times" => 1,
             "timeout" => 3,
             "enabledKeys" => "",
-            "files" => [["text" => "אין אפשרות להתחבר לנהג"]],
+            "files" => [["text" => "אין התאמה בשיחה"]],
             "extensionChange" => ""
         ], JSON_UNESCAPED_UNICODE);
         exit;
@@ -188,6 +188,6 @@ echo json_encode([
     "times" => 1,
     "timeout" => 3,
     "enabledKeys" => "",
-    "files" => [["text" => "אין אפשרות להתחבר לנהג"]],
+    "files" => [["text" => "אין התאמה בשיחה"]],
     "extensionChange" => ""
 ], JSON_UNESCAPED_UNICODE);
