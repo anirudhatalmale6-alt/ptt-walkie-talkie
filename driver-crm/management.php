@@ -2,18 +2,18 @@
 /**
  * ממשק ניהול נהגים — CRM
  *
- * פותח בדפדפן: https://your-server.com/management.php
- * הנהגים נשמרים בקובץ drivers.json בשרת
- *
- * API פנימי (הממשק קורא לעצמו):
- * ?api=list       — רשימת נהגים
- * ?api=save       — שמירת נהג (POST: name, phone, virtual, index)
- * ?api=delete     — מחיקת נהג (POST: index)
- * ?api=dial       — חיוג (POST: driverPhone, passengerPhone, driverName)
+ * API פנימי:
+ * ?api=list          — רשימת נהגים
+ * ?api=save          — שמירת נהג (POST: name, phone, virtual, index)
+ * ?api=delete        — מחיקת נהג (POST: index)
+ * ?api=dial          — חיוג (POST: driverPhone, passengerPhone, driverName, virtualNumber)
+ * ?api=log           — יומן שיחות (GET: driverPhone=optional filter)
+ * ?api=log_delete    — מחיקת שיחות מיומן (POST: ids=[...])
  */
 
 $api = $_GET['api'] ?? '';
-$driversFile = __DIR__ . '/drivers.json';
+$driversFile  = __DIR__ . '/drivers.json';
+$callLogFile  = __DIR__ . '/call_log.json';
 
 // ========== API: רשימת נהגים ==========
 if ($api === 'list') {
@@ -77,6 +77,43 @@ if ($api === 'delete') {
     exit;
 }
 
+// ========== API: יומן שיחות ==========
+if ($api === 'log') {
+    header('Content-Type: application/json; charset=utf-8');
+    $log = [];
+    if (file_exists($callLogFile)) {
+        $log = json_decode(file_get_contents($callLogFile), true) ?: [];
+    }
+    // אפשרות לסינון לפי נהג
+    $filterDriver = $_GET['driverPhone'] ?? '';
+    if (!empty($filterDriver)) {
+        $log = array_values(array_filter($log, function($entry) use ($filterDriver) {
+            return ($entry['driverPhone'] ?? '') === $filterDriver;
+        }));
+    }
+    echo json_encode($log, JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// ========== API: מחיקת שיחות מיומן ==========
+if ($api === 'log_delete') {
+    header('Content-Type: application/json; charset=utf-8');
+    $ids = json_decode($_POST['ids'] ?? '[]', true) ?: [];
+
+    $log = [];
+    if (file_exists($callLogFile)) {
+        $log = json_decode(file_get_contents($callLogFile), true) ?: [];
+    }
+
+    $log = array_values(array_filter($log, function($entry) use ($ids) {
+        return !in_array($entry['id'] ?? '', $ids);
+    }));
+
+    file_put_contents($callLogFile, json_encode($log, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+    echo json_encode(["status" => "ok", "remaining" => count($log)]);
+    exit;
+}
+
 // ========== API: חיוג ==========
 if ($api === 'dial') {
     header('Content-Type: application/json; charset=utf-8');
@@ -133,6 +170,32 @@ if ($api === 'dial') {
     $error    = curl_error($ch);
     curl_close($ch);
 
+    // שמירה ביומן שיחות
+    $log = [];
+    if (file_exists($callLogFile)) {
+        $log = json_decode(file_get_contents($callLogFile), true) ?: [];
+    }
+
+    $logEntry = [
+        "id"             => uniqid('call_'),
+        "time"           => date('Y-m-d H:i:s'),
+        "driverName"     => $driverName,
+        "driverPhone"    => $driverPhone,
+        "passengerPhone" => $passengerPhone,
+        "virtualNumber"  => $virtualNumber,
+        "type"           => "outgoing",
+        "duration"       => "",
+        "recording"      => "",
+        "status"         => $error ? "error" : "sent"
+    ];
+    $log[] = $logEntry;
+
+    // שמירת עד 1000 רשומות
+    if (count($log) > 1000) {
+        $log = array_slice($log, -1000);
+    }
+    file_put_contents($callLogFile, json_encode($log, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+
     if ($error) {
         echo json_encode(["status" => "error", "message" => $error]);
     } else {
@@ -158,28 +221,42 @@ if ($api === 'dial') {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-            background: #f0f2f5;
-            color: #1a1a2e;
-            min-height: 100vh;
+            background: #f0f2f5; color: #1a1a2e; min-height: 100vh;
         }
         .header {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            color: #fff;
-            padding: 20px 30px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            color: #fff; padding: 16px 30px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
+        .header-top { display: flex; align-items: center; justify-content: space-between; }
         .header h1 { font-size: 22px; font-weight: 700; }
-        .header .subtitle { font-size: 13px; opacity: 0.7; margin-top: 4px; }
+        .header .subtitle { font-size: 13px; opacity: 0.7; margin-top: 2px; }
+
+        /* Navigation */
+        .nav {
+            display: flex; gap: 0; margin-top: 14px;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+        }
+        .nav-item {
+            padding: 10px 24px; color: rgba(255,255,255,0.6);
+            cursor: pointer; font-size: 15px; font-weight: 600;
+            border-bottom: 3px solid transparent; transition: all 0.2s;
+            user-select: none;
+        }
+        .nav-item:hover { color: rgba(255,255,255,0.8); }
+        .nav-item.active { color: #fff; border-bottom-color: #4CAF50; }
+
         .btn-add {
             background: #4CAF50; color: #fff; border: none;
             padding: 10px 22px; border-radius: 8px; font-size: 15px;
             font-weight: 600; cursor: pointer;
         }
         .btn-add:hover { background: #43A047; }
-        .container { max-width: 900px; margin: 20px auto; padding: 0 15px; }
+        .container { max-width: 960px; margin: 20px auto; padding: 0 15px; }
+
+        /* Page sections */
+        .page { display: none; }
+        .page.active { display: block; }
 
         .stats { display: flex; gap: 12px; margin-bottom: 20px; }
         .stat-card {
@@ -191,39 +268,61 @@ if ($api === 'dial') {
 
         .table-wrap {
             background: #fff; border-radius: 12px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow-x: auto;
         }
         table { width: 100%; border-collapse: collapse; }
         thead { background: #f8f9fa; }
         th {
-            padding: 14px 16px; font-size: 13px; font-weight: 600;
+            padding: 12px 14px; font-size: 13px; font-weight: 600;
             color: #666; text-align: right; border-bottom: 2px solid #eee;
+            white-space: nowrap;
         }
-        td { padding: 14px 16px; font-size: 15px; border-bottom: 1px solid #f0f0f0; }
+        td { padding: 12px 14px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }
         tr:hover { background: #f8f9fa; }
-        .phone-cell { direction: ltr; text-align: right; font-family: monospace; font-size: 14px; }
+        .phone-cell { direction: ltr; text-align: right; font-family: monospace; font-size: 13px; }
 
         .btn-dial {
             background: #4CAF50; color: #fff; border: none;
-            padding: 8px 18px; border-radius: 6px; font-size: 14px;
+            padding: 7px 16px; border-radius: 6px; font-size: 13px;
             font-weight: 600; cursor: pointer;
         }
         .btn-dial:hover { background: #43A047; }
-        .btn-edit {
-            background: #2196F3; color: #fff; border: none;
-            padding: 6px 12px; border-radius: 6px; font-size: 13px;
-            cursor: pointer; margin-left: 6px;
+        .btn-sm {
+            border: none; padding: 5px 10px; border-radius: 5px;
+            font-size: 12px; cursor: pointer; margin-left: 4px;
         }
-        .btn-delete {
-            background: #f44336; color: #fff; border: none;
-            padding: 6px 12px; border-radius: 6px; font-size: 13px;
-            cursor: pointer; margin-left: 6px;
-        }
+        .btn-edit { background: #2196F3; color: #fff; }
+        .btn-delete { background: #f44336; color: #fff; }
+        .btn-log { background: #9C27B0; color: #fff; }
+        .btn-play { background: #FF9800; color: #fff; }
         .actions-cell { white-space: nowrap; }
 
         .empty-state { text-align: center; padding: 60px 20px; color: #aaa; }
         .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
 
+        /* Bulk actions bar */
+        .bulk-bar {
+            display: none; background: #1a1a2e; color: #fff;
+            padding: 10px 16px; border-radius: 8px; margin-bottom: 12px;
+            align-items: center; justify-content: space-between;
+        }
+        .bulk-bar.show { display: flex; }
+        .bulk-bar .count { font-size: 14px; font-weight: 600; }
+        .bulk-bar button {
+            background: #f44336; color: #fff; border: none;
+            padding: 8px 18px; border-radius: 6px; font-size: 13px;
+            font-weight: 600; cursor: pointer;
+        }
+
+        /* Call type badges */
+        .badge {
+            display: inline-block; padding: 3px 10px; border-radius: 12px;
+            font-size: 12px; font-weight: 600;
+        }
+        .badge-out { background: #E3F2FD; color: #1565C0; }
+        .badge-in { background: #E8F5E9; color: #2E7D32; }
+
+        /* Modal */
         .modal-overlay {
             display: none; position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -233,7 +332,8 @@ if ($api === 'dial') {
         .modal-overlay.active { display: flex; }
         .modal {
             background: #fff; border-radius: 14px; padding: 30px;
-            width: 90%; max-width: 440px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            width: 90%; max-width: 500px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-height: 90vh; overflow-y: auto;
         }
         .modal h2 { font-size: 20px; margin-bottom: 20px; color: #1a1a2e; }
         .form-group { margin-bottom: 16px; }
@@ -259,6 +359,11 @@ if ($api === 'dial') {
         .dial-info .driver-name { font-size: 18px; font-weight: 700; }
         .dial-info .driver-phone { font-size: 14px; color: #666; direction: ltr; display: inline-block; margin-top: 4px; }
 
+        /* Driver log in modal */
+        .driver-log-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .driver-log-table th { padding: 8px 10px; font-size: 12px; background: #f0f0f0; text-align: right; }
+        .driver-log-table td { padding: 8px 10px; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+
         .toast {
             display: none; position: fixed; bottom: 30px; left: 50%;
             transform: translateX(-50%); padding: 12px 24px; border-radius: 8px;
@@ -268,58 +373,101 @@ if ($api === 'dial') {
         .toast.error { background: #f44336; }
         .toast.show { display: block; }
 
+        input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+
         @media (max-width: 600px) {
-            .header { padding: 15px; }
+            .header { padding: 12px; }
             .header h1 { font-size: 18px; }
+            .nav-item { padding: 8px 14px; font-size: 13px; }
             .stats { flex-direction: column; }
-            td, th { padding: 10px 12px; font-size: 13px; }
+            td, th { padding: 8px 10px; font-size: 12px; }
         }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <div>
-        <h1>ניהול נהגים</h1>
-        <div class="subtitle">CRM חיוג נהגים</div>
+    <div class="header-top">
+        <div>
+            <h1>ניהול נהגים</h1>
+            <div class="subtitle">CRM חיוג נהגים</div>
+        </div>
+        <button class="btn-add" id="btnAddDriver" onclick="openAddModal()">+ הוסף נהג</button>
     </div>
-    <button class="btn-add" onclick="openAddModal()">+ הוסף נהג</button>
+    <div class="nav">
+        <div class="nav-item active" onclick="switchPage('drivers')">נהגים</div>
+        <div class="nav-item" onclick="switchPage('log')">יומן שיחות</div>
+    </div>
 </div>
 
 <div class="container">
-    <div class="stats">
-        <div class="stat-card">
-            <div class="num" id="totalDrivers">0</div>
-            <div class="label">סה"כ נהגים</div>
+
+    <!-- ========== דף נהגים ========== -->
+    <div class="page active" id="page-drivers">
+        <div class="stats">
+            <div class="stat-card">
+                <div class="num" id="totalDrivers">0</div>
+                <div class="label">סה"כ נהגים</div>
+            </div>
+            <div class="stat-card">
+                <div class="num" id="totalCalls">0</div>
+                <div class="label">שיחות היום</div>
+            </div>
         </div>
-        <div class="stat-card">
-            <div class="num" id="totalCalls">0</div>
-            <div class="label">שיחות היום</div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>שם נהג</th>
+                        <th>טלפון</th>
+                        <th>מספר וירטואלי</th>
+                        <th>חיוג</th>
+                        <th>פעולות</th>
+                    </tr>
+                </thead>
+                <tbody id="driversTable"></tbody>
+            </table>
+            <div class="empty-state" id="emptyDrivers">
+                <div class="icon">🚗</div>
+                <p>אין נהגים — לחץ "הוסף נהג" להתחיל</p>
+            </div>
         </div>
     </div>
 
-    <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>שם נהג</th>
-                    <th>טלפון</th>
-                    <th>מספר וירטואלי</th>
-                    <th>חיוג</th>
-                    <th>פעולות</th>
-                </tr>
-            </thead>
-            <tbody id="driversTable"></tbody>
-        </table>
-        <div class="empty-state" id="emptyState">
-            <div class="icon">🚗</div>
-            <p>אין נהגים — לחץ "הוסף נהג" להתחיל</p>
+    <!-- ========== דף יומן שיחות ========== -->
+    <div class="page" id="page-log">
+        <div class="bulk-bar" id="bulkBar">
+            <span class="count" id="selectedCount">0 נבחרו</span>
+            <button onclick="bulkDeleteLog()">מחק נבחרים</button>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+                        <th>תאריך</th>
+                        <th>נהג</th>
+                        <th>נוסע</th>
+                        <th>סוג</th>
+                        <th>משך</th>
+                        <th>פעולות</th>
+                    </tr>
+                </thead>
+                <tbody id="logTable"></tbody>
+            </table>
+            <div class="empty-state" id="emptyLog">
+                <div class="icon">📋</div>
+                <p>אין שיחות ביומן</p>
+            </div>
         </div>
     </div>
+
 </div>
 
-<!-- הוספה/עריכה -->
+<!-- הוספה/עריכה נהג -->
 <div class="modal-overlay" id="driverModal">
     <div class="modal">
         <h2 id="modalTitle">הוסף נהג</h2>
@@ -363,14 +511,36 @@ if ($api === 'dial') {
     </div>
 </div>
 
+<!-- יומן שיחות של נהג -->
+<div class="modal-overlay" id="driverLogModal">
+    <div class="modal" style="max-width:600px;">
+        <h2 id="driverLogTitle">יומן שיחות</h2>
+        <div id="driverLogContent"></div>
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal('driverLogModal')" style="flex:1;">סגור</button>
+        </div>
+    </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-// auto-detect current filename
 const SELF = location.pathname.split('/').pop() || 'management.php';
 let drivers = [];
-let todayCalls = 0;
+let callLog = [];
+let selectedIds = new Set();
 
+// ========== ניווט ==========
+function switchPage(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+    document.querySelectorAll('.nav-item')[page === 'drivers' ? 0 : 1].classList.add('active');
+    document.getElementById('btnAddDriver').style.display = page === 'drivers' ? '' : 'none';
+    if (page === 'log') loadLog();
+}
+
+// ========== נהגים ==========
 async function loadDrivers() {
     const resp = await fetch(SELF + '?api=list');
     drivers = await resp.json();
@@ -379,9 +549,8 @@ async function loadDrivers() {
 
 function renderDrivers() {
     const tbody = document.getElementById('driversTable');
-    const empty = document.getElementById('emptyState');
+    const empty = document.getElementById('emptyDrivers');
     document.getElementById('totalDrivers').textContent = drivers.length;
-    document.getElementById('totalCalls').textContent = todayCalls;
 
     if (drivers.length === 0) {
         tbody.innerHTML = '';
@@ -397,8 +566,9 @@ function renderDrivers() {
             <td class="phone-cell">${esc(d.virtual || '')}</td>
             <td><button class="btn-dial" onclick="openDialModal(${i})">📞 חייג</button></td>
             <td class="actions-cell">
-                <button class="btn-edit" onclick="openEditModal(${i})">✏️</button>
-                <button class="btn-delete" onclick="deleteDriver(${i})">🗑️</button>
+                <button class="btn-sm btn-log" onclick="showDriverLog(${i})" title="יומן שיחות">📋</button>
+                <button class="btn-sm btn-edit" onclick="openEditModal(${i})" title="ערוך">✏️</button>
+                <button class="btn-sm btn-delete" onclick="deleteDriver(${i})" title="מחק">🗑️</button>
             </td>
         </tr>
     `).join('');
@@ -427,7 +597,6 @@ async function saveDriver() {
     const phone = document.getElementById('driverPhone').value.trim();
     const virtual_ = document.getElementById('driverVirtual').value.trim();
     const index = document.getElementById('editIndex').value;
-
     if (!name || !phone) { showToast('נא למלא שם וטלפון', 'error'); return; }
 
     const form = new FormData();
@@ -436,7 +605,7 @@ async function saveDriver() {
     form.append('virtual', virtual_);
     form.append('index', index);
 
-    await fetch(SELF+'?api=save', { method: 'POST', body: form });
+    await fetch(SELF + '?api=save', { method: 'POST', body: form });
     closeModal('driverModal');
     showToast(index >= 0 ? 'נהג עודכן' : 'נהג נוסף', 'success');
     loadDrivers();
@@ -446,11 +615,12 @@ async function deleteDriver(i) {
     if (!confirm('למחוק את ' + drivers[i].name + '?')) return;
     const form = new FormData();
     form.append('index', i);
-    await fetch(SELF+'?api=delete', { method: 'POST', body: form });
+    await fetch(SELF + '?api=delete', { method: 'POST', body: form });
     showToast('נהג נמחק', 'success');
     loadDrivers();
 }
 
+// ========== חיוג ==========
 function openDialModal(i) {
     document.getElementById('dialDriverName').textContent = drivers[i].name;
     document.getElementById('dialDriverPhone').textContent = drivers[i].phone;
@@ -474,45 +644,165 @@ async function executeDial() {
     form.append('virtualNumber', drivers[i].virtual || '');
 
     try {
-        const resp = await fetch(SELF+'?api=dial', { method: 'POST', body: form });
+        const resp = await fetch(SELF + '?api=dial', { method: 'POST', body: form });
         const data = await resp.json();
-        // Show full server response
-        const respStr = JSON.stringify(data, null, 2);
         if (data.status === 'sent' && (!data.response || !data.response.errorCode)) {
-            todayCalls++;
-            document.getElementById('totalCalls').textContent = todayCalls;
             showToast('שיחה נשלחה!', 'success');
         } else {
             const errMsg = data.response?.messige || data.response?.message || data.message || '';
             showToast('שגיאה: ' + errMsg, 'error');
         }
-        alert('תשובת שרת:\n' + respStr);
     } catch(e) {
         showToast('שגיאת חיבור', 'error');
-        alert('שגיאה: ' + e.message);
     }
 }
 
-function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+// ========== יומן שיחות ==========
+async function loadLog() {
+    const resp = await fetch(SELF + '?api=log');
+    callLog = await resp.json();
+    document.getElementById('totalCalls').textContent = callLog.filter(l => {
+        const d = new Date(l.time);
+        return d.toDateString() === new Date().toDateString();
+    }).length;
+    renderLog();
+}
 
+function renderLog() {
+    const tbody = document.getElementById('logTable');
+    const empty = document.getElementById('emptyLog');
+    selectedIds.clear();
+    updateBulkBar();
+
+    if (callLog.length === 0) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+
+    // הצגה מהחדש לישן
+    const sorted = [...callLog].reverse();
+    tbody.innerHTML = sorted.map(l => {
+        const typeLabel = l.type === 'incoming'
+            ? '<span class="badge badge-in">נכנסת</span>'
+            : '<span class="badge badge-out">יוצאת</span>';
+        const dur = l.duration || '--:--';
+        return `
+        <tr>
+            <td><input type="checkbox" value="${esc(l.id)}" onchange="toggleSelect(this)"></td>
+            <td style="white-space:nowrap;font-size:13px;">${esc(l.time || '')}</td>
+            <td><strong>${esc(l.driverName || '')}</strong><br><span class="phone-cell" style="font-size:12px;">${esc(l.driverPhone || '')}</span></td>
+            <td class="phone-cell">${esc(l.passengerPhone || '')}</td>
+            <td>${typeLabel}</td>
+            <td style="direction:ltr;text-align:right;">${esc(dur)}</td>
+            <td class="actions-cell">
+                <button class="btn-sm btn-play" onclick="playRecording('${esc(l.id)}')" title="שמיעת הקלטה">🎧</button>
+                <button class="btn-sm btn-delete" onclick="deleteLogEntry('${esc(l.id)}')" title="מחק">🗑️</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function toggleSelect(cb) {
+    if (cb.checked) selectedIds.add(cb.value);
+    else selectedIds.delete(cb.value);
+    updateBulkBar();
+}
+
+function toggleSelectAll() {
+    const checked = document.getElementById('selectAll').checked;
+    document.querySelectorAll('#logTable input[type="checkbox"]').forEach(cb => {
+        cb.checked = checked;
+        if (checked) selectedIds.add(cb.value);
+        else selectedIds.delete(cb.value);
+    });
+    updateBulkBar();
+}
+
+function updateBulkBar() {
+    const bar = document.getElementById('bulkBar');
+    if (selectedIds.size > 0) {
+        bar.classList.add('show');
+        document.getElementById('selectedCount').textContent = selectedIds.size + ' נבחרו';
+    } else {
+        bar.classList.remove('show');
+    }
+}
+
+async function bulkDeleteLog() {
+    if (!confirm('למחוק ' + selectedIds.size + ' שיחות?')) return;
+    const form = new FormData();
+    form.append('ids', JSON.stringify([...selectedIds]));
+    await fetch(SELF + '?api=log_delete', { method: 'POST', body: form });
+    showToast('שיחות נמחקו', 'success');
+    loadLog();
+}
+
+async function deleteLogEntry(id) {
+    if (!confirm('למחוק שיחה?')) return;
+    const form = new FormData();
+    form.append('ids', JSON.stringify([id]));
+    await fetch(SELF + '?api=log_delete', { method: 'POST', body: form });
+    showToast('שיחה נמחקה', 'success');
+    loadLog();
+}
+
+function playRecording(id) {
+    alert('עדיין לא עובד');
+}
+
+// ========== יומן שיחות של נהג ==========
+async function showDriverLog(i) {
+    const d = drivers[i];
+    document.getElementById('driverLogTitle').textContent = 'יומן שיחות — ' + d.name;
+
+    const resp = await fetch(SELF + '?api=log&driverPhone=' + encodeURIComponent(d.phone));
+    const log = await resp.json();
+
+    if (log.length === 0) {
+        document.getElementById('driverLogContent').innerHTML = '<p style="color:#aaa;text-align:center;padding:20px;">אין שיחות לנהג זה</p>';
+    } else {
+        const rows = [...log].reverse().map(l => {
+            const typeLabel = l.type === 'incoming'
+                ? '<span class="badge badge-in">נכנסת</span>'
+                : '<span class="badge badge-out">יוצאת</span>';
+            return `<tr>
+                <td>${esc(l.time || '')}</td>
+                <td class="phone-cell">${esc(l.passengerPhone || '')}</td>
+                <td>${typeLabel}</td>
+                <td style="direction:ltr">${esc(l.duration || '--:--')}</td>
+                <td><button class="btn-sm btn-play" onclick="playRecording('${esc(l.id)}')" title="שמיעת הקלטה">🎧</button></td>
+            </tr>`;
+        }).join('');
+        document.getElementById('driverLogContent').innerHTML = `
+            <table class="driver-log-table">
+                <thead><tr><th>תאריך</th><th>נוסע</th><th>סוג</th><th>משך</th><th>הקלטה</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+    }
+    document.getElementById('driverLogModal').classList.add('active');
+}
+
+// ========== Helpers ==========
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 function showToast(msg, type) {
     const t = document.getElementById('toast');
     t.textContent = msg;
     t.className = 'toast ' + type + ' show';
     setTimeout(() => t.className = 'toast', 3000);
 }
-
 function esc(s) {
     const d = document.createElement('div');
     d.textContent = s;
     return d.innerHTML;
 }
-
 document.querySelectorAll('.modal-overlay').forEach(o => {
     o.addEventListener('click', e => { if (e.target === o) o.classList.remove('active'); });
 });
 
 loadDrivers();
+loadLog();
 </script>
 </body>
 </html>
