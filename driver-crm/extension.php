@@ -24,6 +24,7 @@ $phone      = $_GET['PBXphone'] ?? '';
 $did        = $_GET['PBXdid'] ?? '';
 $callStatus = $_GET['PBXcallStatus'] ?? '';
 $callType   = $_GET['PBXcallType'] ?? '';
+$callId     = $_GET['PBXcallId'] ?? '';
 
 // שיחה נותקה
 if ($callStatus === 'HANGUP') {
@@ -35,8 +36,13 @@ $driversFile = __DIR__ . '/drivers.json';
 $mappingFile = __DIR__ . '/call_mapping.json';
 $logFile     = __DIR__ . '/call_log.json';
 
+// נרמול טלפון — מוריד 0, +972, 972 מההתחלה
 function normalizePhone($p) {
-    return preg_replace('/^(\+?972|0)/', '', $p);
+    $p = trim($p);
+    $p = preg_replace('/[^0-9]/', '', $p); // רק ספרות
+    $p = preg_replace('/^972/', '', $p);    // הסר 972
+    $p = preg_replace('/^0/', '', $p);      // הסר 0
+    return $p;
 }
 
 function loadJ($file) {
@@ -53,6 +59,7 @@ $debugLog[] = [
     "PBXdid" => $did,
     "PBXcallType" => $callType,
     "PBXcallStatus" => $callStatus,
+    "PBXcallId" => $callId,
     "all_params" => $_GET
 ];
 if (count($debugLog) > 100) $debugLog = array_slice($debugLog, -100);
@@ -80,12 +87,13 @@ if ($callType === 'in') {
     if (empty($targetPhone)) {
         // לא נמצא נהג — השמעת הודעה וניתוק
         echo json_encode([
-            [
-                "type" => "simpleMenu", "name" => "noDriver", "times" => 1,
-                "timeout" => 3, "enabledKeys" => "",
-                "files" => [["text" => "אין אפשרות להתחבר לנהג"]],
-                "extensionChange" => ""
-            ]
+            "type" => "simpleMenu",
+            "name" => "noDriver",
+            "times" => 1,
+            "timeout" => 3,
+            "enabledKeys" => "",
+            "files" => [["text" => "אין אפשרות להתחבר לנהג"]],
+            "extensionChange" => ""
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }
@@ -118,29 +126,50 @@ if ($callType === 'in') {
 // ========== מצב 1: שיחה יוצאת (CRM מחייג לנהג → מחבר לנוסע) ==========
 $passengerPhone = '';
 $virtualNumber  = '';
+$driverName     = '';
 
 $mappings = loadJ($mappingFile);
+$normalPhone = normalizePhone($phone);
 
-// מחפש את הנוסע לפי מספר הנהג (PBXphone)
-if (isset($mappings[$phone])) {
-    $passengerPhone = $mappings[$phone]['passengerPhone'];
-    $virtualNumber  = $mappings[$phone]['virtualNumber'] ?? '';
-} else {
-    foreach ($mappings as $key => $val) {
-        if (normalizePhone($key) === normalizePhone($phone)) {
-            $passengerPhone = $val['passengerPhone'];
-            $virtualNumber  = $val['virtualNumber'] ?? '';
-            break;
-        }
+// מחפש את הנוסע לפי מספר הנהג (PBXphone) — בדיקה עם נרמול
+foreach ($mappings as $key => $val) {
+    if (normalizePhone($key) === $normalPhone) {
+        $passengerPhone = $val['passengerPhone'];
+        $virtualNumber  = $val['virtualNumber'] ?? '';
+        $driverName     = $val['driverName'] ?? '';
+        break;
     }
 }
 
+// דיבאג — שמירת תוצאת חיפוש
+$debugLog[] = [
+    "time" => date('Y-m-d H:i:s'),
+    "action" => "outgoing_lookup",
+    "PBXphone" => $phone,
+    "normalPhone" => $normalPhone,
+    "foundPassenger" => $passengerPhone,
+    "foundVirtual" => $virtualNumber,
+    "mappingKeys" => array_keys($mappings)
+];
+if (count($debugLog) > 100) $debugLog = array_slice($debugLog, -100);
+file_put_contents($debugFile, json_encode($debugLog, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+
 if (empty($passengerPhone)) {
-    $passengerPhone = '0533124489'; // fallback
+    // לא נמצא מיפוי — השמעת הודעה וניתוק
+    echo json_encode([
+        "type" => "simpleMenu",
+        "name" => "noMapping",
+        "times" => 1,
+        "timeout" => 3,
+        "enabledKeys" => "",
+        "files" => [["text" => "אין אפשרות להתחבר לנהג"]],
+        "extensionChange" => ""
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
 // הנוסע רואה את המספר הוירטואלי
-$displayNum = !empty($virtualNumber) ? $virtualNumber : $passengerPhone;
+$displayNum = !empty($virtualNumber) ? $virtualNumber : '';
 
 echo json_encode([
     "type"          => "simpleRouting",
